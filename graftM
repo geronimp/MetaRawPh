@@ -3,7 +3,7 @@
 
 ##### ##### ##### ##### ##### ##### ##### #####
 #                                             #
-#             MetaRawPh.py v.1.0              #
+#                 graftM v.1.0                #
 #                                             #
 #        This is a script for doing the       #
 #       gene centric analyses in Joel's       #
@@ -13,7 +13,7 @@
 
 ##### Messsages #####
 intro = '''
-## MetaRawPh.py  v.0.00000001        ##
+## graftM  v.0.00000001              ##
 ## Searches raw sequences for genes  ##
 ## Joel Boyd, Honours 2014           ##
 '''
@@ -38,7 +38,7 @@ class Cl(object):
 
 ##### Input Files #####
 
-parser = argparse.ArgumentParser(description='''MetaRawPh.py  v.0.1'''
+parser = argparse.ArgumentParser(description='''graftM  v.0.1'''
                           , epilog='Joel Boyd - Honours 2014.')
 parser.add_argument('-f', metavar = 'forward read or fasta file', type = str, nargs = 1 , help = 'Froward raw sequence file in .fa, or .fq.gz format.', required = True)
 parser.add_argument('-r', metavar = 'reverse read', type = str, nargs = 1, help = 'Optional reverse raw sequence file in .fa, or .fq.gz format.', default = argparse.SUPPRESS)
