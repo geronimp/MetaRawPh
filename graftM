@@ -34,9 +34,9 @@ class Cl(object):
 
 ##### Input Files #####
 
-parser = argparse.ArgumentParser(description='''graftM  v.0.1'''
+parser = argparse.ArgumentParser(description='''graftM  v.0.1 searches metagenomic datasets using hmms, and places them into a tree with pplacer to classify them phylogenetically.'''
                           , epilog='Joel Boyd - Honours 2014.')
-parser.add_argument('-f', metavar = 'forward read or fasta file', type = str, nargs = 1 , help = 'Froward raw sequence file in .fa, or .fq.gz format.', required = True)
+parser.add_argument('-f', metavar = 'forward read (or single read file)', type = str, nargs = 1 , help = 'Froward raw sequence file in .fa, or .fq.gz format.', required = True)
 parser.add_argument('-r', metavar = 'reverse read', type = str, nargs = 1, help = 'Optional reverse raw sequence file in .fa, or .fq.gz format.', default = argparse.SUPPRESS)
 parser.add_argument('-t', metavar = 'prot or dna', type = str, nargs = 1, help = 'dna (like 16S) or prot (like mcrA)', choices = ['prot','dna'], required = True)
 parser.add_argument('-m', metavar = 'hmm_file', type = str, nargs = 1, help = 'HMM file', required = True)
@@ -62,6 +62,10 @@ def fasta_parser(to_split):
     SeqIO.write(all_fasta[start:end], filename, 'fasta')
     i += 1
 
+# Displays message with time in brackets before the message.
+def timer(message):
+  time = datetime.now().strftime('%H:%M:%S')
+  print '['+time+']: '+message
 # run nhmmer
 def nhmmer(hmm, raw_seq_file):
   fa_match = re.search('\.fa$', raw_seq_file)
@@ -72,19 +76,24 @@ def nhmmer(hmm, raw_seq_file):
   if os.path.isfile(path) == True:
     hmmout_table_title = replace_name(raw_seq_file, '.2.hmmout.csv')
     if fa_match:
-      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/_/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/$/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
     if fq_gz_match or fastq_gz_match:
-      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/_/g')) 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) 2>&1 > /dev/null"])
   elif os.path.isfile(path) == False:
     hmmout_table_title = replace_name(raw_seq_file, '.1.hmmout.csv')
     if fa_match:
-      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/_/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/$/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
     if fq_gz_match or fastq_gz_match:
-      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/_/g')) 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) 2>&1 > /dev/null"])
   else:
-    print 'ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file)
+    timer('ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file))
     exit(1)
 
+# split_names
+def title_cleaner(title):
+  d = title.split('_')
+  del d[-1]
+  return '_'.join(d)
 
 # run hmmsearch
 def hmmsearch(hmm, raw_seq_file):
@@ -95,26 +104,26 @@ def hmmsearch(hmm, raw_seq_file):
   if os.path.isfile(path) == True:
     hmmout_table_title = replace_name(raw_seq_file, '.2.hmmout.csv')
     if fa_match:
-      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/_/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/$/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     if fq_gz_match or fastq_gz_match:
-      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/_/g')) \
+      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) \
       -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     else:
-      print 'ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file)
+      timer('ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file))
       exit(1)
   else:
     hmmout_table_title = replace_name(raw_seq_file, '.1.hmmout.csv')
     if fa_match:
-      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/_/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
+      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/$/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     if fq_gz_match or fastq_gz_match:
-      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/_/g')) \
+      subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) \
       -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     else:
-      print 'ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file)
+      timer('ERROR: Suffix on %s not recegnised. Please submit an .fq.gz or .fa file\n' % (raw_seq_file))
       exit(1)
 
 # run pynast
@@ -176,21 +185,19 @@ def csv_to_titles_for(hmmout, type_, raw_seq_file):
     else:
       line_counter += 1
       split = line.split(' ', 1)
-      new_title = str(split[0].replace('_',':'))
+      title = str(split[0])
       if type_ == 'dna':
-        raw_titles.append(new_title)
+        raw_titles.append(new_title).replace('$',':')
       if type_ == 'prot':
         if 'FCC' in line:
-          raw_titles.append(new_title[:-4]+'/1')
+          raw_titles.append(title_cleaner(title).replace('$',':'))
         else:
-          raw_titles.append(new_title[:-2])
+          raw_titles.append(title_cleaner(title).replace('$',':'))
   if line_counter == 0:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: 0 Reads found!'
+    timer('0 Reads found!')
     exit(1)
   else:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Found %s read(s) in %s.' % (str(line_counter), replace_name(raw_seq_file, ''))
+    timer('Found %s read(s) in %s.' % (str(line_counter), replace_name(raw_seq_file, '')))
   file_name = replace_name(hmmout, '.titles.1.txt')
   title_file_open = open(file_name, 'w')
   for title in raw_titles:
@@ -208,21 +215,19 @@ def csv_to_titles_rev(hmmout, type_, raw_seq_file):
     else:
       line_counter += 1
       split = line.split(' ', 1)
-      new_title = str(split[0].replace('_',':'))
+      title = str(split[0])
       if type_ == 'dna':
-        raw_titles.append(new_title)
+        raw_titles.append(new_title).replace('$',':')
       if type_ == 'prot':
         if 'FCC' in line:
-          raw_titles.append(new_title[:-4]+'/1')
+          raw_titles.append(title_cleaner(title).replace('$',':'))
         else:
-          raw_titles.append(new_title[:-2])
+          raw_titles.append(title_cleaner(title).replace('$',':'))
   if line_counter == 0:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: 0 Reads found!'
+    timer('0 Reads found!')
     exit(1)
   else:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Found %s read(s) in %s.' % (str(line_counter), replace_name(raw_seq_file, ''))
+    timer('Found %s read(s) in %s.' % (str(line_counter), replace_name(raw_seq_file, '')))
   file_name = replace_name(hmmout, '.titles.2.txt')
   title_file_open = open(file_name, 'w')
   for title in raw_titles:
@@ -253,12 +258,10 @@ def extract_from_raw_reads(raw_seq_file, hmm):
   file_name = replace_name(raw_seq_file, '.ts')
   match = re.search('\.fa$', raw_seq_file)
   if match:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Extracting reads.'
+    timer('Extracting reads.')
     subprocess.check_call("fxtract -H -f " +replace_name(raw_seq_file, '.titles.txt')+ " " +raw_seq_file+ " > " +file_name+ " ", shell=True)
   elif '.fq.gz' in raw_seq_file or '.fastq.gz' in raw_seq_file:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Extracting reads.'
+    timer('Extracting reads.')
     subprocess.check_call("fxtract -H -f " +replace_name(raw_seq_file, '.titles.txt')+ " " +raw_seq_file+ " | awk '{print \">\" substr($0,2);getline;print;getline;getline}' > " +file_name+ " ", shell=True)
   file_name2 = replace_name(raw_seq_file, '.ts.fasta')
   fasta_file_open = open(file_name2, 'w')
@@ -325,72 +328,70 @@ def replace_name(old_title,new_suffix):
 print intro,
 seq_file_title = replace_name(cl.f[0], '')
 hmm_file_title = replace_name(cl.m[0], '.hmm')
+bad_titles = False
 
 
+try:
+  str(cl.r[0])
+  if replace_name(cl.f[0], '') != replace_name(cl.r[0], ''):
+    timer("Looks like the forward reads don't match the reverse reads. Please make sure you're using the right ones!")
+    exit(1)
+  else:
+    pass
+except AttributeError:
+  pass
 
 if cl.t[0] == 'prot':
   date = datetime.now().strftime('%Y/%m/%d')
-  time = datetime.now().strftime('%H:%M:%S')
-  print '\n            '+date
-  print '['+time+']: Searching %s using %s.' % (seq_file_title, hmm_file_title)
+  timer(str(date))
+  timer('Searching %s using %s.' % (seq_file_title, hmm_file_title))
   hmmsearch(cl.m[0], cl.f[0])
   csv_to_titles_for(replace_name(cl.f[0], '.1.hmmout.csv'), cl.t[0], cl.f[0])
   try:
     hmmsearch(cl.m[0], cl.r[0])
     csv_to_titles_rev(replace_name(cl.r[0], '.2.hmmout.csv'), cl.t[0], cl.f[0])
   except AttributeError:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: No reverse read found. Continuing with forward read only.'
+    timer('No reverse read found. Continuing with forward read only.')
   extract_from_raw_reads(cl.f[0], cl.m[0])
-  time = datetime.now().strftime('%H:%M:%S')
-  print '['+time+']: Aligning to hmm.'
+  timer('Aligning to hmm.')
   hmmalign(cl.m[0], replace_name(cl.f[0], '.ts.fasta'))
-  time = datetime.now().strftime('%H:%M:%S')
   try:
     str(cl.c[0])
-    print '['+time+']: Placing in refpkg tree.'
+    timer('Placing in refpkg tree.')
     pplacer(cl.c[0], replace_name(cl.f[0], '.aln.fasta'))
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Creating Guppy file.'
+    timer('Creating Guppy file.')
     guppy_class(cl.c[0], replace_name(cl.f[0],'.aln.jplace'))
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Finished %s!' % (seq_file_title)
+    timer('Finished %s!' % (seq_file_title))
     exit(1)
   except AttributeError:
-    print '['+time+']: No refpkg found! Stopping at alignment'
+    timer('No refpkg found! Stopping at alignment')
     exit(1)
 
 
 if cl.t[0] == 'dna':
   date = datetime.now().strftime('%Y-%m-%d')
-  time = datetime.now().strftime('%H:%M:%S')
-  print '\n            '+date
-  print '['+time+']: Searching %s using %s.' % (seq_file_title, hmm_file_title)
+  timer(date)
+  timer('Searching %s using %s.' % (seq_file_title, hmm_file_title))
   nhmmer(cl.m[0], cl.f[0])
   csv_to_titles_for(replace_name(cl.f[0], '.1.hmmout.csv'), cl.t[0], cl.f[0])
   try:
     nhmmer(cl.m[0], cl.r[0])
     csv_to_titles_rev(replace_name(cl.r[0], '.2.hmmout.csv'), cl.t[0], cl.f[0])
   except AttributeError:
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: No reverse read found. Continuing with forward read only.'
+    timer('No reverse read found. Continuing with forward read only.')
   extract_from_raw_reads(cl.f[0], cl.m[0])
-  time = datetime.now().strftime('%H:%M:%S')
-  print '['+time+']: Aligning to hmm.'
+  timer('Aligning to hmm.')
   pynast(cl.f[0], cl.g[0])
-  time = datetime.now().strftime('%H:%M:%S')
   try:
     str(cl.c[0])
-    print '['+time+']: Placing in refpkg tree.'
+    timer('Placing in refpkg tree.')
     pplacer(cl.c[0], replace_name(cl.f[0],'.aln.fasta'))
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Creating Guppy file.'
+    timer('Creating Guppy file.')
     guppy_class(cl.c[0], replace_name(cl.f[0], '.aln.jplace'))
-    time = datetime.now().strftime('%H:%M:%S')
-    print '['+time+']: Finished %s!' % (seq_file_title)
+    timer('Finished %s!' % (seq_file_title))
     exit(1)
   except AttributeError:
-    print '['+time+']: No refpkg found! Stopping at alignment'
+    timer('No refpkg found! Stopping at alignment')
     exit(1)
 
 
