@@ -42,6 +42,7 @@ parser.add_argument('-t', metavar = 'prot or dna', type = str, nargs = 1, help =
 parser.add_argument('-m', metavar = 'hmm_file', type = str, nargs = 1, help = 'HMM file', required = True)
 parser.add_argument('-c', metavar = 'reference_package', type = str, nargs = 1, help = 'Reference package of gene family' , default =argparse.SUPPRESS)
 parser.add_argument('-g', metavar = 'gg_database', type = str, nargs = 1, help = 'Aligned gg database for pynast alignment (dna sequences only)', default = argparse.SUPPRESS)
+parser.add_argument('-o', metavar = 'output directory', type = str, nargs = 1, help = 'Specify an output directory (default is the file name) If you are looking for more than one marker gene in the same directory, you will definitely need this flag to avoid clobbering.', default = argparse.SUPPRESS)
 parser.add_argument('-v', action = 'version', version = 'MetaRawPhy.py v.0.1')
 
 cl = Cl()
@@ -51,6 +52,7 @@ args=parser.parse_args(namespace = cl)
 
 # splits fasta file for hmmaligning
 def fasta_parser(to_split):
+
   num_seqs = 1
   all_fasta = list(SeqIO.parse(to_split, 'fasta'))
   num_files = int(math.ceil(len(all_fasta)/float(num_seqs)))
@@ -69,19 +71,20 @@ def timer(message):
 # run nhmmer
 def nhmmer(hmm, raw_seq_file):
   fa_match = re.search('\.fa$', raw_seq_file)
+  faa_match = re.search('\.faa$', raw_seq_file)
   fq_gz_match = re.search('\.fq\.gz$', raw_seq_file)
   fastq_gz_match = re.search('\.fastq\.gz$', raw_seq_file)
-
+  fna_match = re.search('\.fna$', raw_seq_file)
   path = './'+replace_name(raw_seq_file, '')+'.1.hmmout.csv'
   if os.path.isfile(path) == True:
     hmmout_table_title = replace_name(raw_seq_file, '.2.hmmout.csv')
-    if fa_match:
+    if fa_match or fna_match or faa_match:
       subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/$/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
     if fq_gz_match or fastq_gz_match:
       subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) 2>&1 > /dev/null"])
   elif os.path.isfile(path) == False:
     hmmout_table_title = replace_name(raw_seq_file, '.1.hmmout.csv')
-    if fa_match:
+    if fa_match or fna_match or faa_match:
       subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(sed 's/:/$/g' " +raw_seq_file+ ") 2>&1 > /dev/null"])
     if fq_gz_match or fastq_gz_match:
       subprocess.check_call(["/bin/bash", "-c", " nhmmer --tblout " +hmmout_table_title+ " " +hmm+ " <(awk '{print \">\" substr($0,2);getline;print;getline;getline}' <(zcat " +raw_seq_file+ " | sed 's/:/$/g')) 2>&1 > /dev/null"])
@@ -99,11 +102,13 @@ def title_cleaner(title):
 def hmmsearch(hmm, raw_seq_file):
   fa_match = re.search('\.fa$', raw_seq_file)
   fq_gz_match = re.search('\.fq\.gz$', raw_seq_file)
-  path = './'+replace_name(raw_seq_file, '')+'.1.hmmout.csv'
+  faa_match = re.search('\.faa$', raw_seq_file)
+  fna_match = re.search('\.fna$', raw_seq_file)
   fastq_gz_match = re.search('\.fastq\.gz$', raw_seq_file)
+  path = './'+replace_name(raw_seq_file, '')+'.1.hmmout.csv'
   if os.path.isfile(path) == True:
     hmmout_table_title = replace_name(raw_seq_file, '.2.hmmout.csv')
-    if fa_match:
+    if fa_match or fna_match or faa_match:
       subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/$/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     if fq_gz_match or fastq_gz_match:
@@ -115,7 +120,7 @@ def hmmsearch(hmm, raw_seq_file):
       exit(1)
   else:
     hmmout_table_title = replace_name(raw_seq_file, '.1.hmmout.csv')
-    if fa_match:
+    if fa_match or fna_match or faa_match:
       subprocess.check_call(["/bin/bash", "-c", " hmmsearch --domtblout " +hmmout_table_title+ " " +hmm+ " <(getorf -sequence  <(sed 's/:/$/g' " +raw_seq_file+ ") -outseq >(cat) -minsize 98 2>/dev/null) 2>&1 > /dev/null"])
       return
     if fq_gz_match or fastq_gz_match:
@@ -144,27 +149,48 @@ def rubbish(unneeded_file):
 
 # HMM aligning
 def hmmalign(hmm, sequencefile):
-  subprocess.check_call("mkdir "+replace_name(cl.f[0], ''), shell=True)
   base_name = replace_name(sequencefile, '')
-  subprocess.check_call("mv " +base_name+".*  "+replace_name(cl.f[0], ''), shell = True)
+  try:
+    str(cl.o[0])
+    subprocess.check_call("mkdir "+ cl.o[0], shell=True)
+  except:
+    subprocess.check_call("mkdir "+ base_name, shell = True)
+  try:
+    str(cl.o[0])
+    subprocess.check_call("mv "+base_name+".* "+cl.o[0], shell = True)
+  except:
+    subprocess.check_call("mv " +base_name+".*  "+replace_name(cl.f[0], ''), shell = True)
   if cl.t[0] == 'prot':
-    fasta_parser((replace_name(cl.f[0], '')+'/'+replace_name(sequencefile, '.orf.fasta')))
+    try:
+      str(cl.o[0])
+      fasta_parser((cl.o[0]+'/'+replace_name(sequencefile, '.orf.fasta')))
+    except:
+      fasta_parser((replace_name(cl.f[0], '')+'/'+replace_name(sequencefile, '.orf.fasta')))
+
   elif cl.t[0] == 'dna':
-    fasta_parser((replace_name(cl.f[0], '')+'/'+replace_name(sequencefile, '.ts.fasta')))
-  path = './'+replace_name(cl.f[0], '')+'/*.g.fasta'
+    try:
+      fasta_parser((cl.o[0]+'/'+replace_name(sequencefile, '.ts.fasta')))
+    except:
+      fasta_parser((replace_name(cl.f[0], '')+'/'+replace_name(sequencefile, '.ts.fasta')))
+
+  path = './'+out_file_name+'/*.g.fasta'
   files = glob.glob(path)
   for file in files:
     subprocess.check_call('hmmalign --trim -o '+file+'.sto ' +hmm+ ' ' +file, shell = True)
-  path = './'+replace_name(cl.f[0], '')+'/*.sto'
+  path = './'+out_file_name+'/*.sto'
   files = glob.glob(path)
   for file in files:
     subprocess.check_call('seqmagick convert ' +file+ ' ' +file+'conv_.fa', shell=True)
-  path = './'+replace_name(cl.f[0], '')+'/*conv_.fa'
+  path = './'+out_file_name+'/*conv_.fa'
   files = glob.glob(path)
   for file in files:
     subprocess.check_call("sed 's/[a-z]//g' " +file+ " > " +file+'.ready', shell=True)
-  subprocess.check_call("rm "+replace_name(cl.f[0], '')+"/*.sto "+replace_name(cl.f[0], '')+"/*conv_.fa "+replace_name(cl.f[0], '')+"/*.fasta", shell=True)
-  path = './'+replace_name(cl.f[0], '')+'/*.ready'
+  try:
+    str(cl.o[0])
+    subprocess.check_call("rm "+cl.o[0]+"/*.sto "+cl.o[0]+"/*conv_.fa "+cl.o[0]+"/*.fasta", shell=True)
+  except:
+    subprocess.check_call("rm "+base_name+"/*.sto "+base_name+"/*conv_.fa "+base_name+"/*.fasta", shell=True)
+  path = './'+out_file_name+'/*.ready'
   files = glob.glob(path)
   out_aligned_name = replace_name(sequencefile, '.aln.fasta')
   title_file_open = open(out_aligned_name, 'w')
@@ -172,7 +198,7 @@ def hmmalign(hmm, sequencefile):
     for line in open(file):
       title_file_open.write(line)
   title_file_open.close()
-  subprocess.check_call('rm '+replace_name(cl.f[0], '')+'/*.ready', shell=True)
+  subprocess.check_call('rm '+out_file_name+'/*.ready', shell=True)
 
 # process hmmsearch/nhmmer results into 'ts_file's
 def csv_to_titles_for(hmmout, type_, raw_seq_file):
@@ -187,7 +213,7 @@ def csv_to_titles_for(hmmout, type_, raw_seq_file):
       split = line.split(' ', 1)
       title = str(split[0])
       if type_ == 'dna':
-        raw_titles.append(new_title).replace('$',':')
+        raw_titles.append(title.replace('$',':'))
       if type_ == 'prot':
         if 'FCC' in line:
           raw_titles.append(title_cleaner(title).replace('$',':'))
@@ -217,7 +243,7 @@ def csv_to_titles_rev(hmmout, type_, raw_seq_file):
       split = line.split(' ', 1)
       title = str(split[0])
       if type_ == 'dna':
-        raw_titles.append(new_title).replace('$',':')
+        raw_titles.append(title).replace('$',':')
       if type_ == 'prot':
         if 'FCC' in line:
           raw_titles.append(title_cleaner(title).replace('$',':'))
@@ -236,6 +262,11 @@ def csv_to_titles_rev(hmmout, type_, raw_seq_file):
   title_file_open.close()
 
 def extract_from_raw_reads(raw_seq_file, hmm):
+  fa_match = re.search('\.fa$', raw_seq_file)
+  fq_gz_match = re.search('\.fq\.gz$', raw_seq_file)
+  faa_match = re.search('\.faa$', raw_seq_file)
+  fna_match = re.search('\.fna$', raw_seq_file)
+  fastq_gz_match = re.search('\.fastq\.gz$', raw_seq_file)
   all_titles = []
   for_titles = []
   file_name = replace_name(raw_seq_file, '.titles.txt')
@@ -256,11 +287,10 @@ def extract_from_raw_reads(raw_seq_file, hmm):
     title_file_open.write(x)
   title_file_open.close()
   file_name = replace_name(raw_seq_file, '.ts')
-  match = re.search('\.fa$', raw_seq_file)
-  if match:
+  if fa_match or faa_match or fna_match:
     timer('Extracting reads.')
     subprocess.check_call("fxtract -H -f " +replace_name(raw_seq_file, '.titles.txt')+ " " +raw_seq_file+ " > " +file_name+ " ", shell=True)
-  elif '.fq.gz' in raw_seq_file or '.fastq.gz' in raw_seq_file:
+  elif fq_gz_match or fastq_gz_match:
     timer('Extracting reads.')
     subprocess.check_call("fxtract -H -f " +replace_name(raw_seq_file, '.titles.txt')+ " " +raw_seq_file+ " | awk '{print \">\" substr($0,2);getline;print;getline;getline}' > " +file_name+ " ", shell=True)
   file_name2 = replace_name(raw_seq_file, '.ts.fasta')
@@ -328,8 +358,12 @@ def replace_name(old_title,new_suffix):
 print intro,
 seq_file_title = replace_name(cl.f[0], '')
 hmm_file_title = replace_name(cl.m[0], '.hmm')
-bad_titles = False
 
+try:
+  str(cl.o[0])
+  out_file_name = cl.o[0]
+except AttributeError:
+  out_file_name = replace_name(cl.f[0], '')
 
 try:
   str(cl.r[0])
