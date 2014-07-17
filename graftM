@@ -26,11 +26,8 @@ import glob
 import subprocess
 import os.path
 from datetime import datetime
-
+import code
 ##### Classes #####
-
-class Cl(object):
-  pass
 
 ##### Input Files #####
 
@@ -43,10 +40,9 @@ parser.add_argument('-m', metavar = 'hmm_file', type = str, nargs = 1, help = 'H
 parser.add_argument('-c', metavar = 'reference_package', type = str, nargs = 1, help = 'Reference package of gene family' , default =argparse.SUPPRESS)
 parser.add_argument('-g', metavar = 'gg_database', type = str, nargs = 1, help = 'Aligned gg database for pynast alignment (dna sequences only)', default = argparse.SUPPRESS)
 parser.add_argument('-o', metavar = 'output directory', type = str, nargs = 1, help = 'Specify an output directory (default is the file name) If you are looking for more than one marker gene in the same directory, you will definitely need this flag to avoid clobbering.', default = argparse.SUPPRESS)
-parser.add_argument('-v', action = 'version', version = 'MetaRawPhy.py v.0.1')
+parser.add_argument('-v', action = 'version', version = 'graftM v.0.1')
 
-cl = Cl()
-args=parser.parse_args(namespace = cl)
+cl=parser.parse_args()
 
 ##### Functions #####
 
